@@ -9,50 +9,78 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="brand">goldenergy</p>
-          <h1>Energia com Recompensas</h1>
+        <div class="welcome-row">
+          <div class="avatar mini">GE</div>
+          <div>
+            <p class="brand">WELCOME BACK</p>
+            <h1>Cliente Goldenergy</h1>
+          </div>
         </div>
-        <button id="shareCodeBtn" class="btn ghost">Partilhar código (+50 XP)</button>
+        <button id="shareCodeBtn" class="btn ghost">Partilhar código +50XP</button>
       </header>
 
       <main>
-          <section id="principal" class="page active">
-          <h2>Página Principal</h2>
-          <div class="card hero">
-            <p>XP atual</p>
-            <h3 id="xpValue">0 XP</h3>
-            <p>Nível atual</p>
-            <h4 id="levelValue">Faísca Verde</h4>
-            <div class="progress-track">
-              <div id="xpProgress" class="progress-fill"></div>
+        <section id="principal" class="page active">
+          <div class="energy-hero card dark-card">
+            <div>
+              <p class="chip">PONTOS GOLDENERGY</p>
+              <h2 id="xpValue">0 XP</h2>
+              <p>Nível atual: <strong id="levelValue">Faísca Verde</strong></p>
+              <small id="nextLevelInfo"></small>
             </div>
-            <small id="nextLevelInfo"></small>
+            <div class="ring-wrapper">
+              <div id="xpRing" class="ring">
+                <div class="ring-inner">
+                  <span id="xpPercent">0%</span>
+                  <small>progresso</small>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="card stat-grid">
-            <div>
-              <p class="stat-label">Faturas pagas</p>
-              <p id="paidInvoicesCount" class="stat-value">0</p>
+          <div class="card dark-card savings-card">
+            <h3>Poupança feita</h3>
+            <div class="stat-grid">
+              <div>
+                <p class="stat-label">Total em descontos</p>
+                <p id="totalSavingsEuro" class="stat-value">0€</p>
+              </div>
+              <div>
+                <p class="stat-label">CO₂ evitado</p>
+                <p id="co2SavedValue" class="stat-value">0 kg</p>
+              </div>
+              <div>
+                <p class="stat-label">Descontos disponíveis</p>
+                <p id="availableDiscounts" class="stat-value">0</p>
+              </div>
+              <div>
+                <p class="stat-label">Meses registados</p>
+                <p id="monthsCount" class="stat-value">0</p>
+              </div>
             </div>
-            <div>
-              <p class="stat-label">Partilhas</p>
-              <p id="sharesCount" class="stat-value">0</p>
-            </div>
-            <div>
-              <p class="stat-label">Meses registados</p>
-              <p id="monthsCount" class="stat-value">0</p>
-            </div>
-            <div>
-              <p class="stat-label">Descontos disponíveis</p>
-              <p id="availableDiscounts" class="stat-value">0</p>
-            </div>
+          </div>
+
+          <div class="card dark-card">
+            <h3>Como ganhar pontos</h3>
+            <ul class="points-list compact">
+              <li>Consumo &lt;200kWh: <strong>+60 XP</strong></li>
+              <li>Consumo &lt;700kWh: <strong>+40 XP</strong></li>
+              <li>Consumo &lt;900kWh: <strong>+20 XP</strong></li>
+              <li>Pagar fatura: <strong>+50 XP</strong></li>
+              <li>Partilhar código: <strong>+50 XP</strong></li>
+            </ul>
+          </div>
+
+          <div class="card dark-card">
+            <h3>Desafios mensais</h3>
+            <p class="hint">Conclui cada desafio uma vez por mês.</p>
+            <div class="challenge-list" id="challengeList"></div>
           </div>
         </section>
 
         <section id="consumos" class="page">
           <h2>Consumos mensais</h2>
-          <div class="card">
+          <div class="card dark-card">
             <form id="consumptionForm" class="form-grid">
               <label>
                 Mês
@@ -67,18 +95,12 @@
             <p class="hint">Pontuação: &lt;200kWh = +60XP, &lt;700kWh = +40XP, &lt;900kWh = +20XP.</p>
           </div>
 
-          <div class="card">
-            <h3>Desafios mensais</h3>
-            <p class="hint">Conclui os desafios uma vez por mês para ganhar XP extra.</p>
-            <div class="challenge-list" id="challengeList"></div>
-          </div>
-
-          <div class="card">
+          <div class="card dark-card">
             <h3>Histórico de consumos</h3>
             <ul id="consumptionList" class="history-list"></ul>
           </div>
 
-          <div class="card">
+          <div class="card dark-card">
             <h3>Fatura</h3>
             <button id="payInvoiceBtn" class="btn">Marcar fatura como paga (+50 XP)</button>
           </div>
@@ -86,36 +108,26 @@
 
         <section id="perfil" class="page">
           <h2>Perfil</h2>
-          <div class="card profile-card">
+          <div class="card dark-card profile-card">
             <div class="avatar">GE</div>
             <div>
               <h3>Cliente Goldenergy</h3>
               <p>Nível: <strong id="profileLevel"></strong></p>
               <p>XP total: <strong id="profileXp"></strong></p>
+              <p>Faturas pagas: <strong id="paidInvoicesCount"></strong></p>
+              <p>Partilhas: <strong id="sharesCount"></strong></p>
             </div>
           </div>
 
-          <div class="card">
+          <div class="card dark-card">
             <h3>Sistema de níveis</h3>
             <ul class="levels-list" id="levelsList"></ul>
           </div>
         </section>
 
         <section id="pontos" class="page">
-          <h2>Sistema de pontos</h2>
-          <div class="card">
-            <h3>Como ganhar pontos</h3>
-            <ul class="points-list">
-              <li>Consumo mensal &lt;200kWh: <strong>+60 XP</strong></li>
-              <li>Consumo mensal &lt;700kWh: <strong>+40 XP</strong></li>
-              <li>Consumo mensal &lt;900kWh: <strong>+20 XP</strong></li>
-              <li>Pagar fatura: <strong>+50 XP</strong></li>
-              <li>Partilhar código: <strong>+50 XP</strong></li>
-              <li>Desafio mensal “Reduzir 10% em ponta”: <strong>+40 XP</strong></li>
-              <li>Desafio mensal “Partilhar dica de poupança”: <strong>+65 XP</strong></li>
-            </ul>
-          </div>
-          <div class="card">
+          <h2>Pontos e descontos</h2>
+          <div class="card dark-card">
             <h3>Desconto por marcos de XP</h3>
             <p class="hint">Ao atingir 500, 1000, 1500... até 5000 XP, ganhas 5€ para aplicar numa fatura do mês que escolheres.</p>
             <form id="discountForm" class="form-grid">
@@ -127,11 +139,11 @@
             </form>
             <small id="discountHelper"></small>
           </div>
-          <div class="card">
+          <div class="card dark-card">
             <h3>Histórico de ganhos de pontos</h3>
             <ul id="xpHistoryList" class="history-list"></ul>
           </div>
-          <div class="card">
+          <div class="card dark-card">
             <h3>Histórico de gasto de pontos / descontos</h3>
             <ul id="spendHistoryList" class="history-list"></ul>
           </div>
@@ -139,7 +151,7 @@
 
         <section id="notificacoes" class="page">
           <h2>Notificações</h2>
-          <div class="card notifications-card">
+          <div class="card dark-card notifications-card">
             <ul id="notificationList" class="notification-list"></ul>
           </div>
         </section>

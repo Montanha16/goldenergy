@@ -84,6 +84,16 @@ function getDiscountsAvailable() {
   return Math.max(0, getDiscountsUnlocked(state.xp) - state.spendHistory.length);
 }
 
+function getCo2SavedKg() {
+  return state.consumptionHistory
+    .filter((entry) => entry.kwh < 700)
+    .reduce((total, entry) => {
+      const baseline = 700;
+      const diff = Math.max(0, baseline - entry.kwh);
+      return total + diff * 0.12;
+    }, 0);
+}
+
 function addXp(amount, reason) {
   const previousXp = state.xp;
   state.xp += amount;
@@ -159,7 +169,9 @@ function render() {
   document.getElementById("levelValue").textContent = level.name;
 
   const percent = Math.min(100, ((state.xp - level.min) / Math.max(1, level.max - level.min)) * 100);
-  document.getElementById("xpProgress").style.width = `${percent}%`;
+  document.getElementById("xpPercent").textContent = `${Math.round(percent)}%`;
+  document.getElementById("xpRing").style.setProperty("--ring-progress", `${percent}%`);
+
   document.getElementById("nextLevelInfo").textContent = nextLevel
     ? `${Math.max(0, nextLevel.min - state.xp)} XP para chegar a ${nextLevel.name}`
     : "Nível máximo atingido. És uma Lenda Sustentável!";
@@ -168,6 +180,10 @@ function render() {
   document.getElementById("sharesCount").textContent = state.shares;
   document.getElementById("monthsCount").textContent = state.consumptionHistory.length;
   document.getElementById("availableDiscounts").textContent = getDiscountsAvailable();
+
+  const totalSavings = state.spendHistory.length * 5;
+  document.getElementById("totalSavingsEuro").textContent = `${totalSavings}€`;
+  document.getElementById("co2SavedValue").textContent = `${getCo2SavedKg().toFixed(1)} kg`;
 
   document.getElementById("profileLevel").textContent = level.name;
   document.getElementById("profileXp").textContent = `${state.xp} XP`;
