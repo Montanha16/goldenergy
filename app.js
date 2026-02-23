@@ -6,6 +6,20 @@ const LEVELS = [
   { name: "Lenda Sustentável", min: 4001, max: 7000 }
 ];
 
+const CHALLENGES = [
+  {
+    id: "peak-reduction",
+    label: "Reduzir consumo em 10% nas horas de ponta",
+    xp: 40
+  },
+  {
+    id: "saving-tip",
+    label: "Partilhar dica de poupança",
+    xp: 65
+  }
+];
+
+const DISCOUNT_MILESTONES = Array.from({ length: 10 }, (_, idx) => (idx + 1) * 500);
 const STORAGE_KEY = "goldenergy-gamification";
 
 const defaultState = {
@@ -14,7 +28,10 @@ const defaultState = {
   shares: 0,
   consumptionHistory: [],
   notifications: [],
-  achievements: 0
+  achievements: 0,
+  xpHistory: [],
+  spendHistory: [],
+  claimedChallenges: []
 };
 
 const state = loadState();
@@ -24,7 +41,23 @@ function loadState() {
   if (!raw) return { ...defaultState };
 
   try {
-    return { ...defaultState, ...JSON.parse(raw) };
+    const parsed = { ...defaultState, ...JSON.parse(raw) };
+    parsed.notifications = (parsed.notifications || []).map((entry) => {
+      if (typeof entry === "string") {
+        return {
+          type: "info",
+          message: entry,
+          date: new Date().toLocaleString("pt-PT")
+        };
+      }
+
+      return entry;
+    });
+
+    parsed.xpHistory = parsed.xpHistory || [];
+    parsed.spendHistory = parsed.spendHistory || [];
+    parsed.claimedChallenges = parsed.claimedChallenges || [];
+    return parsed;
   } catch {
     return { ...defaultState };
   }
@@ -34,13 +67,44 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+function pushNotification(type, message) {
+  state.notifications.unshift({
+    type,
+    message,
+    date: new Date().toLocaleString("pt-PT")
+  });
+  state.notifications = state.notifications.slice(0, 40);
+}
+
+function getDiscountsUnlocked(xp) {
+  return DISCOUNT_MILESTONES.filter((milestone) => xp >= milestone).length;
+}
+
+function getDiscountsAvailable() {
+  return Math.max(0, getDiscountsUnlocked(state.xp) - state.spendHistory.length);
+}
+
 function addXp(amount, reason) {
+  const previousXp = state.xp;
   state.xp += amount;
   state.achievements += 1;
 
-  const item = `${new Date().toLocaleString("pt-PT")} — +${amount} XP: ${reason}`;
-  state.notifications.unshift(item);
-  state.notifications = state.notifications.slice(0, 30);
+  state.xpHistory.unshift({
+    date: new Date().toLocaleString("pt-PT"),
+    amount,
+    reason
+  });
+  state.xpHistory = state.xpHistory.slice(0, 40);
+
+  pushNotification("xp", `+${amount} XP — ${reason}`);
+
+  const newlyReachedMilestones = DISCOUNT_MILESTONES.filter(
+    (milestone) => previousXp < milestone && state.xp >= milestone
+  );
+
+  newlyReachedMilestones.forEach((milestone) => {
+    pushNotification("desconto", `Atingiste ${milestone} XP! Ganhaste 5€ de desconto para uma fatura.`);
+  });
 
   saveState();
   render();
@@ -52,6 +116,39 @@ function getCurrentLevel(xp) {
 
 function getNextLevel(xp) {
   return LEVELS.find((level) => level.min > xp);
+}
+
+function renderChallenges() {
+  const nowMonth = new Date().toISOString().slice(0, 7);
+
+  document.getElementById("challengeList").innerHTML = CHALLENGES.map((challenge) => {
+    const challengeKey = `${challenge.id}-${nowMonth}`;
+    const alreadyDone = state.claimedChallenges.includes(challengeKey);
+
+    return `<article class="challenge-item ${alreadyDone ? "done" : ""}">
+      <div>
+        <h4>${challenge.label}</h4>
+        <p>Recompensa: <strong>+${challenge.xp} XP</strong></p>
+      </div>
+      <button class="btn challenge-btn" data-id="${challenge.id}" ${alreadyDone ? "disabled" : ""}>
+        ${alreadyDone ? "Concluído este mês" : "Concluir"}
+      </button>
+    </article>`;
+  }).join("");
+
+  document.querySelectorAll(".challenge-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const challengeId = button.dataset.id;
+      const challenge = CHALLENGES.find((item) => item.id === challengeId);
+      const month = new Date().toISOString().slice(0, 7);
+      const challengeKey = `${challengeId}-${month}`;
+
+      if (!challenge || state.claimedChallenges.includes(challengeKey)) return;
+
+      state.claimedChallenges.push(challengeKey);
+      addXp(challenge.xp, `Desafio mensal: ${challenge.label} (${month})`);
+    });
+  });
 }
 
 function render() {
@@ -70,28 +167,55 @@ function render() {
   document.getElementById("paidInvoicesCount").textContent = state.paidInvoices;
   document.getElementById("sharesCount").textContent = state.shares;
   document.getElementById("monthsCount").textContent = state.consumptionHistory.length;
+  document.getElementById("availableDiscounts").textContent = getDiscountsAvailable();
 
   document.getElementById("profileLevel").textContent = level.name;
   document.getElementById("profileXp").textContent = `${state.xp} XP`;
 
-  document.getElementById("achievedXp").textContent = state.xp;
-  document.getElementById("achievementsCount").textContent = state.achievements;
+  document.getElementById("consumptionList").innerHTML = state.consumptionHistory.length
+    ? state.consumptionHistory
+        .map(
+          (entry) =>
+            `<li><strong>${entry.month}</strong>: ${entry.kwh} kWh (${entry.award > 0 ? `+${entry.award} XP` : "sem XP"})</li>`
+        )
+        .join("")
+    : "<li>Sem consumos registados.</li>";
 
-  document.getElementById("consumptionList").innerHTML = state.consumptionHistory
-    .map(
-      (entry) =>
-        `<li><strong>${entry.month}</strong>: ${entry.kwh} kWh (${entry.award > 0 ? `+${entry.award} XP` : "sem XP"})</li>`
-    )
-    .join("");
+  document.getElementById("xpHistoryList").innerHTML = state.xpHistory.length
+    ? state.xpHistory
+        .map((entry) => `<li><strong>${entry.date}</strong> — +${entry.amount} XP <br /><small>${entry.reason}</small></li>`)
+        .join("")
+    : "<li>Ainda sem ganhos de pontos.</li>";
 
-  document.getElementById("notificationList").innerHTML =
-    state.notifications.length > 0
-      ? state.notifications.map((msg) => `<li>${msg}</li>`).join("")
-      : "<li>Ainda não tens notificações.</li>";
+  document.getElementById("spendHistoryList").innerHTML = state.spendHistory.length
+    ? state.spendHistory
+        .map(
+          (entry) =>
+            `<li><strong>${entry.date}</strong> — 5€ na fatura de <strong>${entry.month}</strong><br /><small>${entry.source}</small></li>`
+        )
+        .join("")
+    : "<li>Ainda sem descontos aplicados.</li>";
+
+  document.getElementById("discountHelper").textContent = `Descontos disponíveis: ${getDiscountsAvailable()} de 5€.`;
+
+  document.getElementById("notificationList").innerHTML = state.notifications.length
+    ? state.notifications
+        .map(
+          (entry) => `<li class="notification-item ${entry.type}">
+            <div>
+              <p>${entry.message}</p>
+              <small>${entry.date}</small>
+            </div>
+          </li>`
+        )
+        .join("")
+    : '<li class="notification-empty">Ainda não tens notificações.</li>';
 
   document.getElementById("levelsList").innerHTML = LEVELS.map(
     (lvl) => `<li>${lvl.name}: ${lvl.min} a ${lvl.max} XP</li>`
   ).join("");
+
+  renderChallenges();
 }
 
 function bindEvents() {
@@ -124,10 +248,35 @@ function bindEvents() {
     if (award > 0) {
       addXp(award, `Consumo mensal (${month}) abaixo de ${kwh < 200 ? "200" : kwh < 700 ? "700" : "900"} kWh`);
     } else {
+      pushNotification("info", `Consumo ${month} registado sem bónus de XP.`);
       saveState();
       render();
     }
 
+    event.target.reset();
+  });
+
+  document.getElementById("discountForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const month = document.getElementById("discountMonthInput").value;
+    if (!month || getDiscountsAvailable() <= 0) {
+      pushNotification("info", "Sem descontos disponíveis neste momento.");
+      saveState();
+      render();
+      return;
+    }
+
+    state.spendHistory.unshift({
+      date: new Date().toLocaleString("pt-PT"),
+      month,
+      source: "Desconto de marco de XP"
+    });
+    state.spendHistory = state.spendHistory.slice(0, 40);
+
+    pushNotification("desconto", `Aplicaste 5€ de desconto na fatura de ${month}.`);
+    saveState();
+    render();
     event.target.reset();
   });
 

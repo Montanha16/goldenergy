@@ -30,13 +30,23 @@
             <small id="nextLevelInfo"></small>
           </div>
 
-          <div class="card">
-            <h3>Resumo rápido</h3>
-            <ul class="summary-list">
-              <li>Faturas pagas: <strong id="paidInvoicesCount">0</strong></li>
-              <li>Partilhas de código: <strong id="sharesCount">0</strong></li>
-              <li>Meses registados: <strong id="monthsCount">0</strong></li>
-            </ul>
+          <div class="card stat-grid">
+            <div>
+              <p class="stat-label">Faturas pagas</p>
+              <p id="paidInvoicesCount" class="stat-value">0</p>
+            </div>
+            <div>
+              <p class="stat-label">Partilhas</p>
+              <p id="sharesCount" class="stat-value">0</p>
+            </div>
+            <div>
+              <p class="stat-label">Meses registados</p>
+              <p id="monthsCount" class="stat-value">0</p>
+            </div>
+            <div>
+              <p class="stat-label">Descontos disponíveis</p>
+              <p id="availableDiscounts" class="stat-value">0</p>
+            </div>
           </div>
         </section>
 
@@ -55,6 +65,12 @@
               <button type="submit" class="btn">Registar consumo</button>
             </form>
             <p class="hint">Pontuação: &lt;200kWh = +60XP, &lt;700kWh = +40XP, &lt;900kWh = +20XP.</p>
+          </div>
+
+          <div class="card">
+            <h3>Desafios mensais</h3>
+            <p class="hint">Conclui os desafios uma vez por mês para ganhar XP extra.</p>
+            <div class="challenge-list" id="challengeList"></div>
           </div>
 
           <div class="card">
@@ -95,20 +111,35 @@
               <li>Consumo mensal &lt;900kWh: <strong>+20 XP</strong></li>
               <li>Pagar fatura: <strong>+50 XP</strong></li>
               <li>Partilhar código: <strong>+50 XP</strong></li>
+              <li>Desafio mensal “Reduzir 10% em ponta”: <strong>+40 XP</strong></li>
+              <li>Desafio mensal “Partilhar dica de poupança”: <strong>+65 XP</strong></li>
             </ul>
           </div>
           <div class="card">
-            <h3>O que já conquistaste</h3>
-            <ul class="summary-list">
-              <li>Total de XP: <strong id="achievedXp">0</strong></li>
-              <li>Conquistas: <strong id="achievementsCount">0</strong></li>
-            </ul>
+            <h3>Desconto por marcos de XP</h3>
+            <p class="hint">Ao atingir 500, 1000, 1500... até 5000 XP, ganhas 5€ para aplicar numa fatura do mês que escolheres.</p>
+            <form id="discountForm" class="form-grid">
+              <label>
+                Mês da fatura
+                <input type="month" id="discountMonthInput" required />
+              </label>
+              <button type="submit" class="btn">Aplicar desconto de 5€</button>
+            </form>
+            <small id="discountHelper"></small>
+          </div>
+          <div class="card">
+            <h3>Histórico de ganhos de pontos</h3>
+            <ul id="xpHistoryList" class="history-list"></ul>
+          </div>
+          <div class="card">
+            <h3>Histórico de gasto de pontos / descontos</h3>
+            <ul id="spendHistoryList" class="history-list"></ul>
           </div>
         </section>
 
         <section id="notificacoes" class="page">
           <h2>Notificações</h2>
-          <div class="card">
+          <div class="card notifications-card">
             <ul id="notificationList" class="notification-list"></ul>
           </div>
         </section>
