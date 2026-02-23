@@ -208,6 +208,32 @@ input:focus {
   border-color: var(--gold-yellow);
 }
 
+
+textarea {
+  font: inherit;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid rgba(44, 255, 111, 0.28);
+  background: rgba(3, 17, 10, 0.9);
+  color: var(--text-main);
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid rgba(255, 203, 5, 0.35);
+  border-color: var(--gold-yellow);
+}
+
+.tip-form {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.challenge-content {
+  flex: 1;
+}
+
 .btn {
   border: none;
   border-radius: 10px;

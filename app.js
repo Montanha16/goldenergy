@@ -32,7 +32,8 @@ const defaultState = {
   xpHistory: [],
   spendHistory: [],
   claimedChallenges: [],
-  challengeProgress: {}
+  challengeProgress: {},
+  sharedTipsHistory: []
 };
 
 const state = loadState();
@@ -59,6 +60,7 @@ function loadState() {
     parsed.spendHistory = parsed.spendHistory || [];
     parsed.claimedChallenges = parsed.claimedChallenges || [];
     parsed.challengeProgress = parsed.challengeProgress || {};
+    parsed.sharedTipsHistory = parsed.sharedTipsHistory || [];
     return parsed;
   } catch {
     return { ...defaultState };
@@ -117,9 +119,6 @@ function addXp(amount, reason) {
   newlyReachedMilestones.forEach((milestone) => {
     pushNotification("desconto", `Atingiste ${milestone} XP! Ganhaste 5€ de desconto para uma fatura.`);
   });
-
-  saveState();
-  render();
 }
 
 function getCurrentLevel(xp) {
@@ -140,6 +139,17 @@ function setChallengeState(challengeId, month, data) {
   state.challengeProgress[key] = data;
 }
 
+function completeChallenge(challenge, month, reason) {
+  const challengeState = getChallengeState(challenge.id, month);
+  if (!challengeState || challengeState.rewarded) return;
+
+  challengeState.rewarded = true;
+  challengeState.completedAt = new Date().toLocaleString("pt-PT");
+  state.claimedChallenges.push(`${challenge.id}-${month}`);
+  addXp(challenge.xp, `Desafio mensal: ${challenge.label} (${month})`);
+  pushNotification("desconto", `Desafio concluído automaticamente: ${challenge.label}. ${reason}`);
+}
+
 function evaluateChallenge(challenge, month) {
   const challengeState = getChallengeState(challenge.id, month);
   if (!challengeState || !challengeState.enrolled || challengeState.rewarded) return;
@@ -156,23 +166,14 @@ function evaluateChallenge(challenge, month) {
     const reductionPercent = ((previous.kwh - current.kwh) / previous.kwh) * 100;
 
     if (reductionPercent >= 10) {
-      challengeState.rewarded = true;
-      challengeState.completedAt = new Date().toLocaleString("pt-PT");
-      state.claimedChallenges.push(`${challenge.id}-${month}`);
-      addXp(challenge.xp, `Desafio mensal: ${challenge.label} (${month})`);
-      pushNotification("desconto", `Desafio concluído automaticamente: ${challenge.label}.`);
+      completeChallenge(challenge, month, "Conseguiste reduzir 10% no consumo em ponta.");
     }
   }
 
   if (challenge.id === "saving-tip") {
-    const sharesGained = state.shares - (challengeState.baseShareCount || 0);
-
-    if (sharesGained > 0) {
-      challengeState.rewarded = true;
-      challengeState.completedAt = new Date().toLocaleString("pt-PT");
-      state.claimedChallenges.push(`${challenge.id}-${month}`);
-      addXp(challenge.xp, `Desafio mensal: ${challenge.label} (${month})`);
-      pushNotification("desconto", `Desafio concluído automaticamente: ${challenge.label}.`);
+    const tip = (challengeState.tipText || "").trim();
+    if (tip.length >= 5) {
+      completeChallenge(challenge, month, "A tua frase de dica foi validada.");
     }
   }
 }
@@ -190,19 +191,31 @@ function getChallengeButtonText(challengeId, month) {
   return "A verificar...";
 }
 
+function getSavingTipInput(challengeState, month) {
+  if (!challengeState?.enrolled || challengeState.rewarded) return "";
+
+  return `<form class="tip-form" data-month="${month}" novalidate>
+    <label>
+      Escreve uma frase com a tua dica
+      <textarea class="tip-input" name="tipText" rows="2" maxlength="180" placeholder="Ex: Desliga os aparelhos da tomada durante a noite.">${challengeState.tipText || ""}</textarea>
+    </label>
+    <button type="submit" class="btn">Enviar dica</button>
+  </form>`;
+}
+
 function renderChallenges() {
   const nowMonth = new Date().toISOString().slice(0, 7);
   evaluateChallengesForMonth(nowMonth);
 
   document.getElementById("challengeList").innerHTML = CHALLENGES.map((challenge) => {
     const challengeState = getChallengeState(challenge.id, nowMonth);
-    const isEnrolled = !!challengeState?.enrolled;
     const isRewarded = !!challengeState?.rewarded;
 
     return `<article class="challenge-item ${isRewarded ? "done" : ""}">
-      <div>
+      <div class="challenge-content">
         <h4>${challenge.label}</h4>
         <p>Recompensa: <strong>+${challenge.xp} XP</strong></p>
+        ${challenge.id === "saving-tip" ? getSavingTipInput(challengeState, nowMonth) : ""}
       </div>
       <button class="btn challenge-btn" data-id="${challenge.id}" ${isRewarded ? "disabled" : ""}>
         ${getChallengeButtonText(challenge.id, nowMonth)}
@@ -226,12 +239,44 @@ function renderChallenges() {
           enrolled: true,
           rewarded: false,
           enrolledAt: new Date().toLocaleString("pt-PT"),
-          baseShareCount: state.shares
+          tipText: ""
         });
         pushNotification("info", `Entraste no desafio mensal: ${challenge.label}. A app vai verificar automaticamente.`);
       }
 
       evaluateChallengesForMonth(month);
+      saveState();
+      render();
+    });
+  });
+
+  document.querySelectorAll(".tip-form").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const month = form.dataset.month;
+      const tipInput = form.querySelector(".tip-input");
+      const tipText = (tipInput?.value || "").trim();
+      const challenge = CHALLENGES.find((item) => item.id === "saving-tip");
+      const challengeState = getChallengeState("saving-tip", month);
+
+      if (!challenge || !challengeState?.enrolled || challengeState.rewarded) return;
+      if (tipText.length < 5) {
+        pushNotification("info", "Escreve uma frase com pelo menos 5 caracteres para concluir o desafio.");
+        saveState();
+        render();
+        return;
+      }
+
+      challengeState.tipText = tipText;
+      state.sharedTipsHistory.unshift({
+        date: new Date().toLocaleString("pt-PT"),
+        month,
+        text: tipText
+      });
+      state.sharedTipsHistory = state.sharedTipsHistory.slice(0, 20);
+
+      evaluateChallenge(challenge, month);
       saveState();
       render();
     });
@@ -342,36 +387,12 @@ function bindEvents() {
       addXp(award, `Consumo mensal (${month}) abaixo de ${kwh < 200 ? "200" : kwh < 700 ? "700" : "900"} kWh`);
     } else {
       pushNotification("info", `Consumo ${month} registado sem bónus de XP.`);
-      saveState();
-      render();
     }
 
     evaluateChallengesForMonth(month);
-
-    event.target.reset();
-  });
-
-  document.getElementById("discountForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const month = document.getElementById("discountMonthInput").value;
-    if (!month || getDiscountsAvailable() <= 0) {
-      pushNotification("info", "Sem descontos disponíveis neste momento.");
-      saveState();
-      render();
-      return;
-    }
-
-    state.spendHistory.unshift({
-      date: new Date().toLocaleString("pt-PT"),
-      month,
-      source: "Desconto de marco de XP"
-    });
-    state.spendHistory = state.spendHistory.slice(0, 40);
-
-    pushNotification("desconto", `Aplicaste 5€ de desconto na fatura de ${month}.`);
     saveState();
     render();
+
     event.target.reset();
   });
 
@@ -402,12 +423,16 @@ function bindEvents() {
   document.getElementById("payInvoiceBtn").addEventListener("click", () => {
     state.paidInvoices += 1;
     addXp(50, "Pagamento de fatura");
+    saveState();
+    render();
   });
 
   document.getElementById("shareCodeBtn").addEventListener("click", () => {
     state.shares += 1;
     evaluateChallengesForMonth(new Date().toISOString().slice(0, 7));
     addXp(50, "Partilha de código Goldenergy");
+    saveState();
+    render();
   });
 }
 
