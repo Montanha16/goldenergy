@@ -31,7 +31,8 @@ const defaultState = {
   achievements: 0,
   xpHistory: [],
   spendHistory: [],
-  claimedChallenges: []
+  claimedChallenges: [],
+  challengeProgress: {}
 };
 
 const state = loadState();
@@ -57,6 +58,7 @@ function loadState() {
     parsed.xpHistory = parsed.xpHistory || [];
     parsed.spendHistory = parsed.spendHistory || [];
     parsed.claimedChallenges = parsed.claimedChallenges || [];
+    parsed.challengeProgress = parsed.challengeProgress || {};
     return parsed;
   } catch {
     return { ...defaultState };
@@ -128,20 +130,82 @@ function getNextLevel(xp) {
   return LEVELS.find((level) => level.min > xp);
 }
 
+function getChallengeState(challengeId, month) {
+  const key = `${challengeId}-${month}`;
+  return state.challengeProgress[key] || null;
+}
+
+function setChallengeState(challengeId, month, data) {
+  const key = `${challengeId}-${month}`;
+  state.challengeProgress[key] = data;
+}
+
+function evaluateChallenge(challenge, month) {
+  const challengeState = getChallengeState(challenge.id, month);
+  if (!challengeState || !challengeState.enrolled || challengeState.rewarded) return;
+
+  if (challenge.id === "peak-reduction") {
+    const monthIndex = state.consumptionHistory.findIndex((item) => item.month === month);
+    if (monthIndex === -1) return;
+
+    const current = state.consumptionHistory[monthIndex];
+    const previous = state.consumptionHistory.find((item) => item.month < month);
+
+    if (!current || !previous || previous.kwh <= 0) return;
+
+    const reductionPercent = ((previous.kwh - current.kwh) / previous.kwh) * 100;
+
+    if (reductionPercent >= 10) {
+      challengeState.rewarded = true;
+      challengeState.completedAt = new Date().toLocaleString("pt-PT");
+      state.claimedChallenges.push(`${challenge.id}-${month}`);
+      addXp(challenge.xp, `Desafio mensal: ${challenge.label} (${month})`);
+      pushNotification("desconto", `Desafio concluído automaticamente: ${challenge.label}.`);
+    }
+  }
+
+  if (challenge.id === "saving-tip") {
+    const sharesGained = state.shares - (challengeState.baseShareCount || 0);
+
+    if (sharesGained > 0) {
+      challengeState.rewarded = true;
+      challengeState.completedAt = new Date().toLocaleString("pt-PT");
+      state.claimedChallenges.push(`${challenge.id}-${month}`);
+      addXp(challenge.xp, `Desafio mensal: ${challenge.label} (${month})`);
+      pushNotification("desconto", `Desafio concluído automaticamente: ${challenge.label}.`);
+    }
+  }
+}
+
+function evaluateChallengesForMonth(month) {
+  CHALLENGES.forEach((challenge) => {
+    evaluateChallenge(challenge, month);
+  });
+}
+
+function getChallengeButtonText(challengeId, month) {
+  const challengeState = getChallengeState(challengeId, month);
+  if (!challengeState || !challengeState.enrolled) return "Participar";
+  if (challengeState.rewarded) return "Concluído automaticamente";
+  return "A verificar...";
+}
+
 function renderChallenges() {
   const nowMonth = new Date().toISOString().slice(0, 7);
+  evaluateChallengesForMonth(nowMonth);
 
   document.getElementById("challengeList").innerHTML = CHALLENGES.map((challenge) => {
-    const challengeKey = `${challenge.id}-${nowMonth}`;
-    const alreadyDone = state.claimedChallenges.includes(challengeKey);
+    const challengeState = getChallengeState(challenge.id, nowMonth);
+    const isEnrolled = !!challengeState?.enrolled;
+    const isRewarded = !!challengeState?.rewarded;
 
-    return `<article class="challenge-item ${alreadyDone ? "done" : ""}">
+    return `<article class="challenge-item ${isRewarded ? "done" : ""}">
       <div>
         <h4>${challenge.label}</h4>
         <p>Recompensa: <strong>+${challenge.xp} XP</strong></p>
       </div>
-      <button class="btn challenge-btn" data-id="${challenge.id}" ${alreadyDone ? "disabled" : ""}>
-        ${alreadyDone ? "Concluído este mês" : "Concluir"}
+      <button class="btn challenge-btn" data-id="${challenge.id}" ${isRewarded ? "disabled" : ""}>
+        ${getChallengeButtonText(challenge.id, nowMonth)}
       </button>
     </article>`;
   }).join("");
@@ -151,12 +215,25 @@ function renderChallenges() {
       const challengeId = button.dataset.id;
       const challenge = CHALLENGES.find((item) => item.id === challengeId);
       const month = new Date().toISOString().slice(0, 7);
-      const challengeKey = `${challengeId}-${month}`;
 
-      if (!challenge || state.claimedChallenges.includes(challengeKey)) return;
+      if (!challenge) return;
 
-      state.claimedChallenges.push(challengeKey);
-      addXp(challenge.xp, `Desafio mensal: ${challenge.label} (${month})`);
+      const currentState = getChallengeState(challengeId, month);
+      if (currentState?.rewarded) return;
+
+      if (!currentState?.enrolled) {
+        setChallengeState(challengeId, month, {
+          enrolled: true,
+          rewarded: false,
+          enrolledAt: new Date().toLocaleString("pt-PT"),
+          baseShareCount: state.shares
+        });
+        pushNotification("info", `Entraste no desafio mensal: ${challenge.label}. A app vai verificar automaticamente.`);
+      }
+
+      evaluateChallengesForMonth(month);
+      saveState();
+      render();
     });
   });
 }
@@ -269,6 +346,32 @@ function bindEvents() {
       render();
     }
 
+    evaluateChallengesForMonth(month);
+
+    event.target.reset();
+  });
+
+  document.getElementById("discountForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const month = document.getElementById("discountMonthInput").value;
+    if (!month || getDiscountsAvailable() <= 0) {
+      pushNotification("info", "Sem descontos disponíveis neste momento.");
+      saveState();
+      render();
+      return;
+    }
+
+    state.spendHistory.unshift({
+      date: new Date().toLocaleString("pt-PT"),
+      month,
+      source: "Desconto de marco de XP"
+    });
+    state.spendHistory = state.spendHistory.slice(0, 40);
+
+    pushNotification("desconto", `Aplicaste 5€ de desconto na fatura de ${month}.`);
+    saveState();
+    render();
     event.target.reset();
   });
 
@@ -303,6 +406,7 @@ function bindEvents() {
 
   document.getElementById("shareCodeBtn").addEventListener("click", () => {
     state.shares += 1;
+    evaluateChallengesForMonth(new Date().toISOString().slice(0, 7));
     addXp(50, "Partilha de código Goldenergy");
   });
 }
