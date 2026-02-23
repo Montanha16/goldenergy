@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Goldenergy XP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="brand">goldenergy</p>
+          <h1>Energia com Recompensas</h1>
+        </div>
+        <button id="shareCodeBtn" class="btn ghost">Partilhar código (+50 XP)</button>
+      </header>
+
+      <main>
+        <section id="principal" class="page active">
+          <h2>Página Principal</h2>
+          <div class="card hero">
+            <p>XP atual</p>
+            <h3 id="xpValue">0 XP</h3>
+            <p>Nível atual</p>
+            <h4 id="levelValue">Faísca Verde</h4>
+            <div class="progress-track">
+              <div id="xpProgress" class="progress-fill"></div>
+            </div>
+            <small id="nextLevelInfo"></small>
+          </div>
+
+          <div class="card">
+            <h3>Resumo rápido</h3>
+            <ul class="summary-list">
+              <li>Faturas pagas: <strong id="paidInvoicesCount">0</strong></li>
+              <li>Partilhas de código: <strong id="sharesCount">0</strong></li>
+              <li>Meses registados: <strong id="monthsCount">0</strong></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="consumos" class="page">
+          <h2>Consumos mensais</h2>
+          <div class="card">
+            <form id="consumptionForm" class="form-grid">
+              <label>
+                Mês
+                <input type="month" id="monthInput" required />
+              </label>
+              <label>
+                Consumo (kWh)
+                <input type="number" id="kwhInput" min="0" step="1" required placeholder="Ex: 180" />
+              </label>
+              <button type="submit" class="btn">Registar consumo</button>
+            </form>
+            <p class="hint">Pontuação: &lt;200kWh = +60XP, &lt;700kWh = +40XP, &lt;900kWh = +20XP.</p>
+          </div>
+
+          <div class="card">
+            <h3>Histórico de consumos</h3>
+            <ul id="consumptionList" class="history-list"></ul>
+          </div>
+
+          <div class="card">
+            <h3>Fatura</h3>
+            <button id="payInvoiceBtn" class="btn">Marcar fatura como paga (+50 XP)</button>
+          </div>
+        </section>
+
+        <section id="perfil" class="page">
+          <h2>Perfil</h2>
+          <div class="card profile-card">
+            <div class="avatar">GE</div>
+            <div>
+              <h3>Cliente Goldenergy</h3>
+              <p>Nível: <strong id="profileLevel"></strong></p>
+              <p>XP total: <strong id="profileXp"></strong></p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Sistema de níveis</h3>
+            <ul class="levels-list" id="levelsList"></ul>
+          </div>
+        </section>
+
+        <section id="pontos" class="page">
+          <h2>Sistema de pontos</h2>
+          <div class="card">
+            <h3>Como ganhar pontos</h3>
+            <ul class="points-list">
+              <li>Consumo mensal &lt;200kWh: <strong>+60 XP</strong></li>
+              <li>Consumo mensal &lt;700kWh: <strong>+40 XP</strong></li>
+              <li>Consumo mensal &lt;900kWh: <strong>+20 XP</strong></li>
+              <li>Pagar fatura: <strong>+50 XP</strong></li>
+              <li>Partilhar código: <strong>+50 XP</strong></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>O que já conquistaste</h3>
+            <ul class="summary-list">
+              <li>Total de XP: <strong id="achievedXp">0</strong></li>
+              <li>Conquistas: <strong id="achievementsCount">0</strong></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="notificacoes" class="page">
+          <h2>Notificações</h2>
+          <div class="card">
+            <ul id="notificationList" class="notification-list"></ul>
+          </div>
+        </section>
+      </main>
+
+      <nav class="bottom-nav">
+        <button data-target="principal" class="nav-btn active">Início</button>
+        <button data-target="consumos" class="nav-btn">Consumos</button>
+        <button data-target="perfil" class="nav-btn">Perfil</button>
+        <button data-target="pontos" class="nav-btn">Pontos</button>
+        <button data-target="notificacoes" class="nav-btn">Notificações</button>
+      </nav>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
